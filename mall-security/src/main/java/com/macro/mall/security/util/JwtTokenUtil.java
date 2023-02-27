@@ -1,15 +1,19 @@
 package com.macro.mall.security.util;
 
+import cn.hutool.core.codec.Base64;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,11 +44,14 @@ public class JwtTokenUtil {
      * 根据负责生成JWT的token
      */
     private String generateToken(Map<String, Object> claims) {
-        return Jwts.builder()
-                .setClaims(claims)
-                .setExpiration(generateExpirationDate())
-                .signWith(SignatureAlgorithm.HS512, secret)
-                .compact();
+        byte[] decode = Decoders.BASE64.decode(secret);
+        Key key = Keys.hmacShaKeyFor(decode);
+        return Jwts.builder().setClaims(claims).signWith(key).compact();
+        //return Jwts.builder()
+        //        .setClaims(claims)
+        //        .setExpiration(generateExpirationDate())
+        //        .signWith(SignatureAlgorithm.HS512, secret)
+        //        .compact();
     }
 
     /**
@@ -53,10 +60,16 @@ public class JwtTokenUtil {
     private Claims getClaimsFromToken(String token) {
         Claims claims = null;
         try {
-            claims = Jwts.parser()
+            //更换jdk11+jwt0.11.0
+            claims = Jwts.parserBuilder()
                     .setSigningKey(secret)
+                    .build()
                     .parseClaimsJws(token)
                     .getBody();
+            //claims = Jwts.parser()
+            //        .setSigningKey(secret)
+            //        .parseClaimsJws(token)
+            //        .getBody();
         } catch (Exception e) {
             LOGGER.info("JWT格式验证失败:{}", token);
         }
